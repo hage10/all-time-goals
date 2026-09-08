@@ -15,21 +15,40 @@ const __dirname = path.dirname(__filename);
 const RONALDO_GOALS_PATH = path.resolve(__dirname, '../data/players/ronaldo/goals.json');
 const VIDEOS_DIR = path.resolve(__dirname, '../../videos/ronaldo');
 
+let ACCESS_MODE = 'public';
+
 async function uploadLocalVideo(goalId, localFilePath) {
-  const fileStream = fs.createReadStream(localFilePath);
   const blobPath = `goals/ronaldo/Goal${goalId}.mp4`;
 
   console.log(`Uploading Goal #${goalId} (${localFilePath}) to Vercel Blob...`);
 
-  const blob = await put(blobPath, fileStream, {
-    access: 'public',
-    contentType: 'video/mp4',
-    addRandomSuffix: false,
-    token: process.env.BLOB_READ_WRITE_TOKEN,
-  });
-
-  console.log(`✓ Uploaded Goal #${goalId} -> ${blob.url}`);
-  return blob.url;
+  try {
+    const fileStream = fs.createReadStream(localFilePath);
+    const blob = await put(blobPath, fileStream, {
+      access: ACCESS_MODE,
+      contentType: 'video/mp4',
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
+    console.log(`✓ Uploaded Goal #${goalId} -> ${blob.url}`);
+    return blob.url;
+  } catch (err) {
+    if (err.message && err.message.includes('private store')) {
+      ACCESS_MODE = 'private';
+      const fileStream = fs.createReadStream(localFilePath);
+      const blob = await put(blobPath, fileStream, {
+        access: 'private',
+        contentType: 'video/mp4',
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+      console.log(`✓ Uploaded Goal #${goalId} (Private) -> ${blob.url}`);
+      return blob.url;
+    }
+    throw err;
+  }
 }
 
 async function uploadFromUrl(goalId, sourceUrl) {
@@ -41,15 +60,32 @@ async function uploadFromUrl(goalId, sourceUrl) {
   }
 
   const blobPath = `goals/ronaldo/Goal${goalId}.mp4`;
-  const blob = await put(blobPath, response.body, {
-    access: 'public',
-    contentType: 'video/mp4',
-    addRandomSuffix: false,
-    token: process.env.BLOB_READ_WRITE_TOKEN,
-  });
-
-  console.log(`✓ Streamed Goal #${goalId} -> ${blob.url}`);
-  return blob.url;
+  try {
+    const blob = await put(blobPath, response.body, {
+      access: ACCESS_MODE,
+      contentType: 'video/mp4',
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
+    console.log(`✓ Streamed Goal #${goalId} -> ${blob.url}`);
+    return blob.url;
+  } catch (err) {
+    if (err.message && err.message.includes('private store')) {
+      ACCESS_MODE = 'private';
+      const resRetry = await fetch(sourceUrl);
+      const blob = await put(blobPath, resRetry.body, {
+        access: 'private',
+        contentType: 'video/mp4',
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+      console.log(`✓ Streamed Goal #${goalId} (Private) -> ${blob.url}`);
+      return blob.url;
+    }
+    throw err;
+  }
 }
 
 async function main() {

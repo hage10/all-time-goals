@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "crawl:cr7-videos": "node src/scripts/crawl_ronaldo_videos.cjs",
-    "upload:blob": "node src/scripts/upload_to_vercel_blob.mjs"
+    "upload:blob": "node src/scripts/upload_to_vercel_blob.mjs",
+    "sync:cr7-blob": "node src/scripts/crawl_and_upload_cr7.mjs"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.0",
