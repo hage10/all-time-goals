@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ViewMode } from '../types/archive';
+import { PlayerProfile } from '../types/player';
+import { PlayerSwitcher } from './PlayerSwitcher';
 import {
   Crosshair,
   Coffee,
@@ -9,6 +11,8 @@ import {
   SlidersHorizontal,
   ChevronDown,
   Check,
+  Flame,
+  ArrowRightLeft,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -24,6 +28,8 @@ interface NavbarProps {
   totalIconic?: number;
   currentTheme?: string;
   onThemeChange?: (theme: string) => void;
+  activePlayer?: PlayerProfile;
+  onSelectPlayer?: (player: PlayerProfile) => void;
 }
 
 const LANGUAGES = [
@@ -53,6 +59,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   totalIconic = 74,
   currentTheme = 'default',
   onThemeChange,
+  activePlayer,
+  onSelectPlayer,
 }) => {
   const [scrolled, setScrolled] = useState(false);
   const [openMenu, setOpenMenu] = useState<'theme' | 'lang' | null>(null);
@@ -120,26 +128,37 @@ export const Navbar: React.FC<NavbarProps> = ({
               : 'bg-[#070708]/55 border-white/[0.04]'
           }`}
         >
-          <div className="mx-auto max-w-[1500px] px-3 sm:px-5 h-[52px] flex items-center gap-3">
+          <div className="mx-auto max-w-[1500px] px-3 sm:px-5 h-[52px] flex items-center gap-2 sm:gap-3">
             {/* Left: Brand Logo & Title */}
             <div
               onClick={() => onViewChange('goals')}
               className="flex items-center gap-2.5 shrink-0 group cursor-pointer"
             >
               <img
-                src="/icon.png"
-                alt="Messi All Goals"
-                className="w-7 h-7 rounded-lg object-cover shrink-0 transition-transform duration-500 group-hover:scale-105"
+                src={activePlayer?.avatar || '/icon.png'}
+                alt={activePlayer?.name || 'All Goals'}
+                className="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-white/20 transition-transform duration-500 group-hover:scale-105"
                 onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
+                  (e.target as HTMLImageElement).src = '/icon.png';
                 }}
               />
               <span className="hidden min-[420px]:inline font-display text-[13px] font-black uppercase italic tracking-[-0.02em] text-white leading-none">
-                Messi<span className="text-primary"> All Goals</span>
+                {activePlayer ? activePlayer.shortName : 'Messi'}
+                <span className="text-primary"> All Goals</span>
               </span>
             </div>
 
-            <span className="hidden sm:block w-px h-7 bg-white/[0.08] ml-1" />
+            {/* All-Star Player Switcher */}
+            {activePlayer && onSelectPlayer && (
+              <div className="flex items-center">
+                <PlayerSwitcher
+                  activePlayer={activePlayer}
+                  onSelectPlayer={onSelectPlayer}
+                />
+              </div>
+            )}
+
+            <span className="hidden sm:block w-px h-7 bg-white/[0.08] ml-0.5" />
 
             {/* Desktop Center: Dataset Tabs */}
             <div className="hidden sm:flex self-stretch items-stretch">
@@ -150,6 +169,23 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Right: Controls & Links */}
             <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+              {/* GOAT / H2H Compare link */}
+              <button
+                onClick={() => onViewChange('compare')}
+                data-active={currentView === 'compare'}
+                className={`flex items-center gap-1.5 h-[34px] px-2 sm:px-2.5 rounded-xl transition-all ${
+                  currentView === 'compare'
+                    ? 'bg-primary/15 text-primary border border-primary/30 shadow-[0_0_12px_rgba(var(--color-primary-rgb),0.25)]'
+                    : 'text-white/50 hover:text-white hover:bg-white/[0.04]'
+                }`}
+                title="GOAT Debate / Head to Head Comparison"
+              >
+                <Flame className="w-3.5 h-3.5 text-amber-400" />
+                <span className="font-display text-[9.5px] font-black uppercase tracking-[0.16em]">
+                  GOAT H2H
+                </span>
+              </button>
+
               {/* Shot Map link */}
               <button
                 onClick={() => onViewChange('shotmapper')}
@@ -325,6 +361,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               name: 'Shots',
               view: 'shotmapper' as ViewMode,
               icon: Crosshair,
+            },
+            {
+              name: 'Compare',
+              view: 'compare' as ViewMode,
+              icon: Flame,
             },
             {
               name: 'Support',

@@ -66,4 +66,4 @@ export interface FilterState {
   sort: 'desc' | 'asc' | 'xg_high' | 'minute_late';
 }
 
-export type ViewMode = 'goals' | 'shotmapper' | 'assists' | 'iconic';
+export type ViewMode = 'goals' | 'shotmapper' | 'assists' | 'iconic' | 'compare';

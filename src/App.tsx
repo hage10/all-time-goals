@@ -1,14 +1,15 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import rawGoals from './data/goals.json';
-import rawAssists from './data/assists.json';
 import rawGoalkeepers from './data/goalkeepers.json';
 import { Goal, Assist, FilterState, ViewMode } from './types/archive';
+import { PlayerProfile } from './types/player';
+import { PLAYERS, getPlayerGoals, getPlayerAssists, getPlayer } from './data/players';
 import { Navbar } from './components/Navbar';
 import { FilterDrawer } from './components/FilterDrawer';
 import { GoalGrid } from './components/GoalGrid';
 import { ShotMapper } from './components/ShotMapper';
 import { AssistsView } from './components/AssistsView';
 import { IconicView } from './components/IconicView';
+import { HeadToHeadCompare } from './components/HeadToHeadCompare';
 import { GoalDetailModal } from './components/GoalDetailModal';
 import { SEOHead } from './components/SEOHead';
 import { Footer } from './components/Footer';
@@ -73,16 +74,25 @@ const SORT_OPTIONS = [
 ];
 
 export const App: React.FC = () => {
-  // 1. Merge goalkeepers into goals
+  // 0. Active Superstar Player State
+  const [activePlayer, setActivePlayer] = useState<PlayerProfile>(() => {
+    const saved = localStorage.getItem('active_player_id');
+    return saved ? getPlayer(saved) : PLAYERS[0];
+  });
+
+  // 1. Dynamic Goals & Assists for Selected Player
   const allGoals: Goal[] = useMemo(() => {
     const gkMap = rawGoalkeepers as Record<string, string>;
-    return (rawGoals as Goal[]).map((g) => ({
+    const baseGoals = getPlayerGoals(activePlayer.id);
+    return baseGoals.map((g) => ({
       ...g,
       goalkeeper: gkMap[g.title] || g.goalkeeper || undefined,
     }));
-  }, []);
+  }, [activePlayer.id]);
 
-  const allAssists: Assist[] = rawAssists as Assist[];
+  const allAssists: Assist[] = useMemo(() => {
+    return getPlayerAssists(activePlayer.id) as unknown as Assist[];
+  }, [activePlayer.id]);
 
   // 2. State & Settings
   const [currentView, setCurrentView] = useState<ViewMode>('goals');
@@ -112,7 +122,15 @@ export const App: React.FC = () => {
 
   // Apply CSS root variables for active theme
   useEffect(() => {
-    const cfg = THEME_CONFIGS[theme] || THEME_CONFIGS.default;
+    let cfg = THEME_CONFIGS[theme];
+    if (!cfg || theme === 'default') {
+      cfg = {
+        primary: activePlayer.theme.primary,
+        rgb: activePlayer.theme.primaryRgb,
+        light: activePlayer.theme.primaryLight,
+        dark: activePlayer.theme.primaryDark,
+      };
+    }
     const root = document.documentElement;
     root.style.setProperty('--color-primary', cfg.primary);
     root.style.setProperty('--color-primary-rgb', cfg.rgb);
@@ -125,7 +143,7 @@ export const App: React.FC = () => {
     } else {
       localStorage.removeItem('theme_override');
     }
-  }, [theme]);
+  }, [theme, activePlayer]);
 
   // Synchronize initial URL on mount and browser popstate
   const syncFromUrl = useCallback(() => {
@@ -331,43 +349,50 @@ export const App: React.FC = () => {
       const opp = selectedGoal.opponent || selectedGoal.awayTeam || 'Opponent';
       return {
         title: `${label} #${selectedGoal.title} vs ${opp}`,
-        description: `Watch Lionel Messi's ${label.toLowerCase()} #${selectedGoal.title} against ${opp} in ${selectedGoal.competition} (${selectedGoal.date}) in HD quality.`,
+        description: `Watch ${activePlayer.name}'s ${label.toLowerCase()} #${selectedGoal.title} against ${opp} in ${selectedGoal.competition} (${selectedGoal.date}).`,
         goalData: {
           title: selectedGoal.title,
           opponent: opp,
           competition: selectedGoal.competition,
           date: selectedGoal.date,
-          videoUrl: `https://cdn.messiallgoals.com/${isA ? 'Assist' : 'Goal'}${selectedGoal.title}.mp4`,
+          videoUrl: selectedGoal.videoUrl || `https://cdn.messiallgoals.com/${isA ? 'Assist' : 'Goal'}${selectedGoal.title}.mp4`,
         },
+      };
+    }
+
+    if (currentView === 'compare') {
+      return {
+        title: 'GOAT Debate · Head to Head Comparison',
+        description: `Compare all-time stats, trophies, clutch goals, and metrics between ${activePlayer.name} and football legends.`,
       };
     }
 
     if (currentView === 'shotmapper') {
       return {
-        title: 'Shot Map',
-        description: 'Every Messi goal on one pitch, with the position it was scored from. Filter by competition, season, opponent, goalkeeper or how it was struck.',
+        title: `${activePlayer.shortName} Shot Map`,
+        description: `Every ${activePlayer.name} goal on one pitch, with the position it was scored from. Filter by competition, season, opponent, or shot type.`,
       };
     }
 
     if (currentView === 'assists') {
       return {
-        title: 'Every Assist',
-        description: 'Complete collection of all 332+ Lionel Messi career assists in HD quality from 2004 to 2026 across Barcelona, Argentina, PSG, and Inter Miami.',
+        title: `${activePlayer.shortName} Assists`,
+        description: `Complete collection of ${activePlayer.name} career assists across all clubs and international matches.`,
       };
     }
 
     if (currentView === 'iconic') {
       return {
-        title: 'Iconic Goals',
-        description: 'The defining moments, historical milestones, and greatest masterclass goals in Lionel Messi career history.',
+        title: `${activePlayer.shortName} Iconic Goals`,
+        description: `The defining moments, historical milestones, and greatest goals in ${activePlayer.name}'s career.`,
       };
     }
 
     return {
-      title: 'Every Goal',
-      description: 'Watch every one of Lionel Messi\'s 900+ career goals in HD. Complete collection from Barcelona, PSG, Inter Miami and Argentina.',
+      title: `${activePlayer.shortName} All Goals`,
+      description: `Explore every one of ${activePlayer.name}'s ${activePlayer.stats.totalGoals} career goals. Complete archive with filterable search and interactive pitch.`,
     };
-  }, [selectedGoal, currentView]);
+  }, [selectedGoal, currentView, activePlayer]);
 
   return (
     <div className="relative min-h-screen bg-[#070708] flex flex-col font-sans text-white selection:bg-[#F97316]/30 selection:text-white">
@@ -399,6 +424,13 @@ export const App: React.FC = () => {
         totalIconic={74}
         currentTheme={theme}
         onThemeChange={setTheme}
+        activePlayer={activePlayer}
+        onSelectPlayer={(p) => {
+          setActivePlayer(p);
+          localStorage.setItem('active_player_id', p.id);
+          setCurrentPage(1);
+          setSelectedGoal(null);
+        }}
       />
 
       {/* Main Content Area */}
@@ -664,6 +696,10 @@ export const App: React.FC = () => {
               </div>
             )}
           </div>
+        )}
+
+        {currentView === 'compare' && (
+          <HeadToHeadCompare initialPlayer1={activePlayer.id} />
         )}
 
         {currentView === 'shotmapper' && (
