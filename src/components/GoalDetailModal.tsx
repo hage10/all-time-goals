@@ -59,8 +59,8 @@ export const GoalDetailModal: React.FC<GoalDetailModalProps> = ({
   // Clean title to extract goal/assist number
   const goalNum = goal ? goal.title.replace(/\D/g, '') : '1';
   const isAssist = goal?.type === 'assist';
-  // Direct CDN video URL from messiallgoals.com
-  const videoUrl = `https://cdn.messiallgoals.com/${isAssist ? 'Assist' : 'Goal'}${goalNum}.mp4`;
+  // Use goal.videoUrl if provided (e.g. from Vercel Blob store), otherwise fallback to Messi CDN
+  const videoUrl = goal?.videoUrl || `https://cdn.messiallgoals.com/${isAssist ? 'Assist' : 'Goal'}${goalNum}.mp4`;
 
   useEffect(() => {
     setIsVideoLoading(true);
