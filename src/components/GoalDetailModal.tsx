@@ -59,8 +59,8 @@ export const GoalDetailModal: React.FC<GoalDetailModalProps> = ({
   // Clean title to extract goal/assist number
   const goalNum = goal ? goal.title.replace(/\D/g, '') : '1';
   const isAssist = goal?.type === 'assist';
-  // Use local proxied stream URL for 100% smooth playback without CORS issues
-  const videoUrl = `/video-stream/${isAssist ? 'Assist' : 'Goal'}${goalNum}.mp4`;
+  // Direct CDN video URL from messiallgoals.com
+  const videoUrl = `https://cdn.messiallgoals.com/${isAssist ? 'Assist' : 'Goal'}${goalNum}.mp4`;
 
   useEffect(() => {
     setIsVideoLoading(true);
@@ -198,9 +198,22 @@ export const GoalDetailModal: React.FC<GoalDetailModalProps> = ({
                 className="w-full h-full object-contain cursor-pointer"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center p-6 text-center text-white/50 space-y-2">
-                <Play className="w-10 h-10 text-[#F97316] opacity-60" />
-                <p className="text-xs">HD Video clip for this goal is currently playing.</p>
+              <div className="flex flex-col items-center justify-center p-6 text-center text-white/60 space-y-3">
+                <Play className="w-10 h-10 text-primary opacity-60" />
+                <p className="text-xs text-white/70">Unable to load HD video stream for this moment.</p>
+                <button
+                  onClick={() => {
+                    setVideoError(false);
+                    setIsVideoLoading(true);
+                    if (videoRef.current) {
+                      videoRef.current.load();
+                      videoRef.current.play().catch(() => {});
+                    }
+                  }}
+                  className="px-4 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 text-primary-light border border-primary/40 font-display text-[10px] font-black uppercase tracking-wider transition-colors"
+                >
+                  Retry Stream
+                </button>
               </div>
             )}
 
